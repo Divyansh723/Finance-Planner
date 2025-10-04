@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
@@ -7,6 +8,7 @@ import { TrendingUp, TrendingDown, Wallet, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { DateRangePicker } from '@/components/DateRangePicker';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function Dashboard() {
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -119,35 +121,37 @@ export default function Dashboard() {
             <CardTitle>Expenses by Category</CardTitle>
           </CardHeader>
           <CardContent>
-            {categoryData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36}
-                    formatter={(value, entry: any) => `${value} (${((entry.payload.value / expenses) * 100).toFixed(0)}%)`}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                No expense data for this month
-              </div>
-            )}
+            <ScrollArea className="h-[400px]">
+              {categoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="40%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      formatter={(value, entry: any) => `${value} (${((entry.payload.value / expenses) * 100).toFixed(0)}%)`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No expense data for this month
+                </div>
+              )}
+            </ScrollArea>
           </CardContent>
         </Card>
 
@@ -156,39 +160,41 @@ export default function Dashboard() {
             <CardTitle>Budget Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            {budgets.length > 0 ? (
-              <div className="space-y-4">
-                {budgets.slice(0, 5).map(budget => {
-                  const spent = transactions
-                    .filter(t => t.type === 'expense' && t.category === budget.category)
-                    .reduce((sum, t) => sum + t.amount, 0);
-                  const percentage = (spent / budget.amount) * 100;
+            <ScrollArea className="h-[400px]">
+              {budgets.length > 0 ? (
+                <div className="space-y-4 pr-4">
+                  {budgets.slice(0, 5).map(budget => {
+                    const spent = transactions
+                      .filter(t => t.type === 'expense' && t.category === budget.category)
+                      .reduce((sum, t) => sum + t.amount, 0);
+                    const percentage = (spent / budget.amount) * 100;
 
-                  return (
-                    <div key={budget.id} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">{budget.category}</span>
-                        <span className="text-muted-foreground">
-                          ${spent.toFixed(0)} / ${budget.amount.toFixed(0)}
-                        </span>
+                    return (
+                      <div key={budget.id} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">{budget.category}</span>
+                          <span className="text-muted-foreground">
+                            ${spent.toFixed(0)} / ${budget.amount.toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all ${
+                              percentage > 100 ? 'bg-destructive' : percentage > 80 ? 'bg-warning' : 'bg-success'
+                            }`}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all ${
-                            percentage > 100 ? 'bg-destructive' : percentage > 80 ? 'bg-warning' : 'bg-success'
-                          }`}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                No budgets set for this month
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No budgets set for this month
+                </div>
+              )}
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
