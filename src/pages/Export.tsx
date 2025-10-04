@@ -249,14 +249,6 @@ export default function Export() {
               <Download className="w-4 h-4 mr-2" />
               Debts CSV
             </Button>
-            <Button
-              className="w-full"
-              onClick={() => handleExport('all', 'csv')}
-              disabled={exporting || stats.total === 0}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export All as CSV
-            </Button>
           </CardContent>
         </Card>
 
@@ -299,14 +291,6 @@ export default function Export() {
             >
               <Download className="w-4 h-4 mr-2" />
               Debts JSON
-            </Button>
-            <Button
-              className="w-full"
-              onClick={() => handleExport('all', 'json')}
-              disabled={exporting || stats.total === 0}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export All as JSON
             </Button>
           </CardContent>
         </Card>
