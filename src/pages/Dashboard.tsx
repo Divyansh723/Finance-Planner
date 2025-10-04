@@ -1,22 +1,36 @@
+import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import StatCard from '@/components/StatCard';
 import { TrendingUp, TrendingDown, Wallet, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { DateRangePicker } from '@/components/DateRangePicker';
 
 export default function Dashboard() {
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
+  
   const currentMonth = format(new Date(), 'yyyy-MM');
-  const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-  const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
 
-  const transactions = useLiveQuery(
-    () => db.transactions
-      .where('date')
-      .between(monthStart, monthEnd, true, true)
-      .toArray()
-  ) || [];
+  const allTransactions = useLiveQuery(() => db.transactions.toArray()) || [];
+
+  const transactions = useMemo(() => {
+    if (!startDate && !endDate) return allTransactions;
+    
+    return allTransactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      if (startDate && endDate) {
+        return isWithinInterval(transactionDate, { start: startDate, end: endDate });
+      } else if (startDate) {
+        return transactionDate >= startDate;
+      } else if (endDate) {
+        return transactionDate <= endDate;
+      }
+      return true;
+    });
+  }, [allTransactions, startDate, endDate]);
 
   const budgets = useLiveQuery(
     () => db.budgets.where('month').equals(currentMonth).toArray()
@@ -53,11 +67,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground">
-          Overview for {format(new Date(), 'MMMM yyyy')}
-        </p>
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground">
+            Overview of your financial health
+          </p>
+        </div>
+        <DateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -103,9 +125,8 @@ export default function Dashboard() {
                   <Pie
                     data={categoryData}
                     cx="50%"
-                    cy="50%"
+                    cy="40%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -115,6 +136,11 @@ export default function Dashboard() {
                     ))}
                   </Pie>
                   <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value, entry: any) => `${value} (${((entry.payload.value / expenses) * 100).toFixed(0)}%)`}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (

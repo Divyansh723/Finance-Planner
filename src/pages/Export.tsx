@@ -1,20 +1,73 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { format } from 'date-fns';
+import { format, isWithinInterval, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Download, FileText, Database } from 'lucide-react';
 import { exportToCSV, exportToJSON, downloadFile } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
+import { DateRangePicker } from '@/components/DateRangePicker';
 
 export default function Export() {
   const [exporting, setExporting] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
-  const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
-  const budgets = useLiveQuery(() => db.budgets.toArray()) || [];
-  const debts = useLiveQuery(() => db.debts.toArray()) || [];
+  const allTransactions = useLiveQuery(() => db.transactions.toArray()) || [];
+  const allBudgets = useLiveQuery(() => db.budgets.toArray()) || [];
+  const allDebts = useLiveQuery(() => db.debts.toArray()) || [];
+
+  const transactions = useMemo(() => {
+    if (!startDate && !endDate) return allTransactions;
+    
+    return allTransactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      if (startDate && endDate) {
+        return isWithinInterval(transactionDate, { start: startDate, end: endDate });
+      } else if (startDate) {
+        return transactionDate >= startDate;
+      } else if (endDate) {
+        return transactionDate <= endDate;
+      }
+      return true;
+    });
+  }, [allTransactions, startDate, endDate]);
+
+  const budgets = useMemo(() => {
+    if (!startDate && !endDate) return allBudgets;
+    
+    return allBudgets.filter(b => {
+      // Budget month format is 'yyyy-MM'
+      const budgetDate = parseISO(`${b.month}-01`);
+      if (startDate && endDate) {
+        return isWithinInterval(budgetDate, { start: startDate, end: endDate });
+      } else if (startDate) {
+        return budgetDate >= startDate;
+      } else if (endDate) {
+        return budgetDate <= endDate;
+      }
+      return true;
+    });
+  }, [allBudgets, startDate, endDate]);
+
+  const debts = useMemo(() => {
+    if (!startDate && !endDate) return allDebts;
+    
+    return allDebts.filter(d => {
+      if (!d.createdDate) return true; // Include debts without creation date
+      const debtDate = parseISO(d.createdDate);
+      if (startDate && endDate) {
+        return isWithinInterval(debtDate, { start: startDate, end: endDate });
+      } else if (startDate) {
+        return debtDate >= startDate;
+      } else if (endDate) {
+        return debtDate <= endDate;
+      }
+      return true;
+    });
+  }, [allDebts, startDate, endDate]);
 
   const handleExport = async (type: 'transactions' | 'budgets' | 'debts' | 'all', fileFormat: 'csv' | 'json') => {
     setExporting(true);
@@ -96,6 +149,21 @@ export default function Export() {
         <h2 className="text-3xl font-bold tracking-tight">Export Data</h2>
         <p className="text-muted-foreground">Download your financial data for backup or analysis</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Filter by Date Range</CardTitle>
+          <CardDescription>Select a custom date range to export specific transactions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

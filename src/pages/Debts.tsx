@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Debt } from '@/lib/db';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, TrendingDown, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function Debts() {
   const [open, setOpen] = useState(false);
@@ -19,6 +21,7 @@ export default function Debts() {
   const { toast } = useToast();
 
   const debts = useLiveQuery(() => db.debts.toArray()) || [];
+  const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +32,7 @@ export default function Debts() {
       interestRate: parseFloat(interestRate),
       minimumPayment: parseFloat(minimumPayment),
       currentBalance: parseFloat(currentBalance),
+      createdDate: new Date().toISOString().split('T')[0],
       synced: false,
       localId: crypto.randomUUID(),
     };
@@ -238,7 +242,7 @@ export default function Debts() {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-4">
                     <div>
                       <div className="text-sm text-muted-foreground">Original</div>
@@ -264,7 +268,7 @@ export default function Debts() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4">
+                  <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Progress</span>
                       <span className="font-medium">{progress.toFixed(1)}% paid off</span>
@@ -276,6 +280,50 @@ export default function Debts() {
                       />
                     </div>
                   </div>
+                  
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        <History className="w-4 h-4 mr-2" />
+                        Payment History
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">Recent Payments</CardTitle>
+                          <CardDescription>
+                            Created: {debt.createdDate ? format(new Date(debt.createdDate), 'MMM dd, yyyy') : 'Unknown'}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {transactions
+                            .filter(t => t.debtId === debt.id)
+                            .sort((a, b) => b.date.localeCompare(a.date))
+                            .slice(0, 5)
+                            .map(payment => (
+                              <div key={payment.id} className="flex justify-between items-center py-2 border-b last:border-0">
+                                <div>
+                                  <div className="text-sm font-medium">{payment.description || 'Payment'}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {format(new Date(payment.date), 'MMM dd, yyyy')}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-semibold text-success">
+                                  -${payment.amount.toFixed(2)}
+                                </div>
+                              </div>
+                            ))
+                          }
+                          {!transactions.some(t => t.debtId === debt.id) && (
+                            <div className="text-sm text-muted-foreground text-center py-4">
+                              No payments recorded yet
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </CardContent>
               </Card>
             );

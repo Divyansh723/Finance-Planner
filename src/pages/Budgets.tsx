@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Budget } from '@/lib/db';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,27 +12,58 @@ import { Plus, Trash2 } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '@/lib/categories';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { DateRangePicker } from '@/components/DateRangePicker';
+import { Card as UICard, CardDescription } from '@/components/ui/card';
 
 export default function Budgets() {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
-  const budgets = useLiveQuery(
-    () => db.budgets.where('month').equals(month).toArray()
-  ) || [];
+  const allBudgets = useLiveQuery(() => db.budgets.toArray()) || [];
+  const allTransactions = useLiveQuery(() => db.transactions.toArray()) || [];
 
-  const monthStart = format(startOfMonth(new Date(month)), 'yyyy-MM-dd');
-  const monthEnd = format(endOfMonth(new Date(month)), 'yyyy-MM-dd');
+  const budgets = useMemo(() => {
+    if (!startDate && !endDate) {
+      return allBudgets.filter(b => b.month === month);
+    }
+    
+    return allBudgets.filter(b => {
+      const budgetDate = parseISO(`${b.month}-01`);
+      if (startDate && endDate) {
+        return isWithinInterval(budgetDate, { start: startDate, end: endDate });
+      } else if (startDate) {
+        return budgetDate >= startDate;
+      } else if (endDate) {
+        return budgetDate <= endDate;
+      }
+      return true;
+    });
+  }, [allBudgets, startDate, endDate, month]);
 
-  const transactions = useLiveQuery(
-    () => db.transactions
-      .where('date')
-      .between(monthStart, monthEnd, true, true)
-      .toArray()
-  ) || [];
+  const transactions = useMemo(() => {
+    if (!startDate && !endDate) {
+      const monthStart = format(startOfMonth(new Date(month)), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(new Date(month)), 'yyyy-MM-dd');
+      return allTransactions.filter(t => t.date >= monthStart && t.date <= monthEnd);
+    }
+    
+    return allTransactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      if (startDate && endDate) {
+        return isWithinInterval(transactionDate, { start: startDate, end: endDate });
+      } else if (startDate) {
+        return transactionDate >= startDate;
+      } else if (endDate) {
+        return transactionDate <= endDate;
+      }
+      return true;
+    });
+  }, [allTransactions, startDate, endDate, month]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,16 +169,31 @@ export default function Budgets() {
         </Dialog>
       </div>
 
-      <div className="flex items-center gap-4 mb-4">
-        <Label htmlFor="month-filter">Viewing:</Label>
-        <Input
-          id="month-filter"
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="w-auto"
-        />
-      </div>
+      <UICard>
+        <CardHeader>
+          <CardTitle>Filter by Date Range</CardTitle>
+          <CardDescription>Select a custom date range or use month filter</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+          />
+          <div className="flex items-center gap-4">
+            <Label htmlFor="month-filter">Or view by month:</Label>
+            <Input
+              id="month-filter"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="w-auto"
+              disabled={!!(startDate || endDate)}
+            />
+          </div>
+        </CardContent>
+      </UICard>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {budgets.length > 0 ? (

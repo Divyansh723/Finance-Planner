@@ -8,6 +8,7 @@ export interface Transaction {
   description: string;
   tags: string[];
   type: 'income' | 'expense';
+  debtId?: number;
   synced: boolean;
   localId?: string;
 }
@@ -28,6 +29,7 @@ export interface Debt {
   interestRate: number;
   minimumPayment: number;
   currentBalance: number;
+  createdDate: string;
   synced: boolean;
   localId?: string;
 }
@@ -43,6 +45,17 @@ export class FinanceDB extends Dexie {
       transactions: '++id, date, category, type, synced',
       budgets: '++id, category, month, synced',
       debts: '++id, name, synced'
+    });
+    this.version(2).stores({
+      transactions: '++id, date, category, type, debtId, synced',
+      budgets: '++id, category, month, synced',
+      debts: '++id, name, createdDate, synced'
+    }).upgrade(async tx => {
+      // Add createdDate to existing debts
+      const debts = await tx.table('debts').toArray();
+      debts.forEach(debt => {
+        tx.table('debts').update(debt.id!, { createdDate: new Date().toISOString().split('T')[0] });
+      });
     });
   }
 }
