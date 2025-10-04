@@ -1,12 +1,12 @@
-# Open Finance Planner (PWA Edition)
+# Open Finance Planner 
 
 📊 **Open-source, privacy-first personal finance planner**.  
 Works offline-first (IndexedDB), syncs with a FastAPI backend, and runs as a Progressive Web App (PWA).  
 
-- ✅ Desktop + Mobile (responsive, installable as PWA)  
-- ✅ Offline-first (IndexedDB → sync to backend when online)  
+- ✅ Desktop + Mobile (responsive)  
+- ✅ Offline-first (IndexedDB )  
 - ✅ No ads, no trackers  
-- ✅ Deployable on **Vercel (frontend)** + **Render/Railway (backend)**  
+- ✅ Deployable on **Vercel**   
 
 ---
 
@@ -62,9 +62,8 @@ Check [`CONTRIBUTING.md`](./CONTRIBUTING.md) for style guide & PR rules.
 ## ✅ Success Criteria
 
 - App runs on desktop & mobile browsers.  
-- Installable as a PWA.  
-- Works offline (transactions saved, synced later).  
-- Frontend deployed on Vercel, backend on Render/Railway.  
+- Works offline (transactions saved).  
+- Frontend deployed on Vercel.  
 - Contributors can run locally in <10 mins.  
 
 ---
